@@ -67,7 +67,7 @@ typedef struct {
     int result;
 } ExtractThreadCtx;
 
-static void *extract_thread_func(void *arg) {
+static void __attribute__((unused)) *extract_thread_func(void *arg) {
     ExtractThreadCtx *ctx = (ExtractThreadCtx *)arg;
     int len = 0;
     unsigned char *data = utils_read_file(ctx->zip_path, &len);
@@ -257,7 +257,7 @@ typedef struct {
     int result;
 } CreateThreadCtx;
 
-static void *create_thread_func(void *arg) {
+static void __attribute__((unused)) *create_thread_func(void *arg) {
     CreateThreadCtx *ctx = (CreateThreadCtx *)arg;
     struct stat st;
     int total = (stat(ctx->src_path, &st) == 0 && S_ISDIR(st.st_mode)) ? count_files(ctx->src_path) : 1;

@@ -55,7 +55,7 @@ int video_to_gif(const char *input, const char *output,
     if (!(ofmt->oformat->flags & AVFMT_NOFILE))
         if (avio_open(&ofmt->pb, output, AVIO_FLAG_WRITE) < 0)
             { if (error) snprintf(error, err_sz, "cannot open file"); goto gdone; }
-    avformat_write_header(ofmt, NULL);
+    (void)avformat_write_header(ofmt, NULL);
     if (start_sec > 0) { av_seek_frame(ifmt, -1, (int64_t)start_sec * AV_TIME_BASE, AVSEEK_FLAG_BACKWARD); avcodec_flush_buffers(dec); }
     frm = av_frame_alloc(); rgb = av_frame_alloc(); pal = av_frame_alloc();
     ipkt = av_packet_alloc(); opkt = av_packet_alloc();
@@ -144,7 +144,7 @@ int video_trim(const char *input, const char *output,
     if (!(ofmt->oformat->flags & AVFMT_NOFILE))
         if (avio_open(&ofmt->pb, output, AVIO_FLAG_WRITE) < 0)
             { if (error) snprintf(error, err_sz, "cannot open output file"); goto tdone; }
-    avformat_write_header(ofmt, NULL);
+    (void)avformat_write_header(ofmt, NULL);
     if (start_sec > 0) {
         av_seek_frame(ifmt, -1, (int64_t)start_sec * AV_TIME_BASE, AVSEEK_FLAG_BACKWARD);
         avcodec_flush_buffers(dec);
@@ -211,7 +211,7 @@ int video_extract_audio(const char *input, const char *output, char *error, int 
     if (!(ofmt->oformat->flags & AVFMT_NOFILE))
         if (avio_open(&ofmt->pb, output, AVIO_FLAG_WRITE) < 0)
             { if (error) snprintf(error, err_sz, "cannot open file"); goto aend; }
-    avformat_write_header(ofmt, NULL);
+    (void)avformat_write_header(ofmt, NULL);
     ipkt = av_packet_alloc(); opkt = av_packet_alloc();
     g_progress_total = (int)(ifmt->duration > 0 ? ifmt->duration / (AV_TIME_BASE / 10) : 1);
     if (g_progress_total <= 0) g_progress_total = 1;
