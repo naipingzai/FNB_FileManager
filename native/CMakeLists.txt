@@ -86,6 +86,38 @@ if(EXISTS "${THIRD_PARTY_DIR}/include" AND EXISTS "${THIRD_PARTY_DIR}/lib")
         "${THIRD_PARTY_DIR}/lib/libsqlite3.a"
     )
     if(NOT ANDROID)
+        include(ProcessorCount)
+        ProcessorCount(NPROC)
+        if(NPROC EQUAL 0)
+            set(NPROC 4)
+        endif()
+
+        include(ExternalProject)
+        set(X264_INSTALL_DIR "${CMAKE_BINARY_DIR}/x264-install")
+        ExternalProject_Add(x264_external
+            GIT_REPOSITORY https://code.videolan.org/videolan/x264.git
+            GIT_TAG        stable
+            GIT_SHALLOW    TRUE
+            INSTALL_DIR    "${X264_INSTALL_DIR}"
+            CONFIGURE_COMMAND cd <SOURCE_DIR> && ./configure
+                --prefix=<INSTALL_DIR>
+                --enable-static --disable-shared
+                --enable-pic --disable-cli
+                --disable-lavf --disable-swscale
+            BUILD_COMMAND     make -j${NPROC}
+            INSTALL_COMMAND   make install
+            BUILD_IN_SOURCE   TRUE
+            BUILD_BYPRODUCTS  "${X264_INSTALL_DIR}/lib/libx264.a"
+        )
+
+        file(MAKE_DIRECTORY "${X264_INSTALL_DIR}/include")
+        add_library(x264 STATIC IMPORTED)
+        set_target_properties(x264 PROPERTIES
+            IMPORTED_LOCATION             "${X264_INSTALL_DIR}/lib/libx264.a"
+            INTERFACE_INCLUDE_DIRECTORIES "${X264_INSTALL_DIR}/include"
+        )
+        add_dependencies(x264 x264_external)
+        add_dependencies(native x264_external)
         target_link_libraries(native PUBLIC x264)
     endif()
     message(STATUS "[native] 第三方库: ${THIRD_PARTY_DIR}")
