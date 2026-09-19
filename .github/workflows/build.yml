@@ -37,20 +37,22 @@ jobs:
           sudo apt-get install -y \
             cmake g++ ninja-build pkg-config make \
             libgtk-3-dev libasound2-dev libmpv-dev libx11-dev \
-            libbz2-dev liblzma-dev zlib1g-dev libx264-dev
+            libbz2-dev liblzma-dev zlib1g-dev
+
+      - name: Build x264 static lib
+        run: |
+          cd /tmp
+          git clone --depth 1 --branch stable https://code.videolan.org/videolan/x264.git
+          cd x264
+          ./configure --enable-static --disable-shared --enable-pic --disable-cli
+          make -j$(nproc)
+          sudo cp libx264.a /usr/lib/x86_64-linux-gnu/
 
       - name: Flutter pub get
         run: flutter pub get
 
       - name: Build
-        run: |
-          flutter build linux --release -v 2>&1 | tee /tmp/build.log || true
-          echo "--- Linker errors ---"
-          grep -i 'undefined\|cannot find\|error:' /tmp/build.log | tail -30
-          echo "--- Last 30 lines ---"
-          tail -30 /tmp/build.log
-          # Fail if build didn't succeed
-          test -f build/linux/x64/release/bundle/fn_file_manager
+        run: flutter build linux --release
 
       - name: Verify
         run: test -f build/linux/x64/release/bundle/fn_file_manager
