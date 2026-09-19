@@ -50,15 +50,14 @@ jobs:
 
       - name: Package
         run: |
-          cd build/linux/x64/release
-          tar -czf fn_file_manager-linux-x86_64.tar.gz bundle
+          cp build/linux/x64/release/bundle/fn_file_manager fn_file_manager
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: fn-file-manager-linux-x86_64
-          path: build/linux/x64/release/fn_file_manager-linux-x86_64.tar.gz
-          retention-days: 14
+          name: fn_file_manager
+          path: fn_file_manager
+          retention-days: 30
 
   android:
     name: Android (APK)
@@ -91,11 +90,14 @@ jobs:
       - name: Build
         run: flutter build apk --release
 
+      - name: Package
+        run: cp build/app/outputs/flutter-apk/app-release.apk fn_file_manager.apk
+
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: fn-file-manager-android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: fn_file_manager.apk
+          path: fn_file_manager.apk
           retention-days: 30
 
   summarize:
