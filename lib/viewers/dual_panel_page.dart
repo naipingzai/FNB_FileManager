@@ -134,7 +134,7 @@ class _DualPanelState extends State<DualPanelPage> {
         Expanded(child: _buildPanel(0, cs)),
         Container(width: 1, color: cs.outlineVariant),
         Expanded(child: _buildPanel(1, cs)),
-      ]),
+      ]),),
     );
   }
 
