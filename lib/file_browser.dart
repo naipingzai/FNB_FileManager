@@ -585,10 +585,10 @@ class _FileBrowserPageState extends State<FileBrowserPage> {
     final l10n = AppLocalizations.of(context)!;
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         if (_stack.length > 1) { _back(); }
-        else { Navigator.of(context).maybePop(); }
+        else { SystemNavigator.pop(); }
       },
       child: Scaffold(
       drawer: Drawer(child: SafeArea(child: ListView(padding: EdgeInsets.zero, children: [

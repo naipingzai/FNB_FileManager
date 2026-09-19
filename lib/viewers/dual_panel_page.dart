@@ -105,10 +105,27 @@ class _DualPanelState extends State<DualPanelPage> {
     }
   }
 
+  void _back(int panel) {
+    final path = panel == 0 ? _leftPath : _rightPath;
+    if (path != '/') _enter(panel, p.dirname(path));
+  }
+
+  bool _canGoBack(int panel) {
+    final path = panel == 0 ? _leftPath : _rightPath;
+    return path != '/';
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_canGoBack(_activePanel)) { _back(_activePanel); }
+        else { Navigator.of(context).pop(); }
+      },
+      child: Scaffold(
       appBar: AppBar(title: Text(Localizations.localeOf(context).languageCode == 'zh' ? '双面板' : 'Dual Panel'), actions: [
         IconButton(icon: Icon(AppIcon.check, size: 20), tooltip: 'Left', onPressed: () => setState(() => _activePanel = 0)),
         IconButton(icon: Icon(AppIcon.selectAll, size: 20), tooltip: 'Right', onPressed: () => setState(() => _activePanel = 1)),
