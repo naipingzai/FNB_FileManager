@@ -1,6 +1,5 @@
 import "package:flutter/cupertino.dart";
 import 'dart:io';
-import 'dart:isolate';
 import '../widgets/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -31,12 +30,11 @@ class _SAState extends State<StorageAnalysisPage> {
     _root = home;
     final entries = await NativeFs.listDir(_root, showHidden: false);
     final dirPaths = entries.where((e) => e.isDir).map((e) => e.path).toList();
-    final dirEntries = await Isolate.run(() {
-      final result = <_DirEntry>[];
-      for (final dp in dirPaths) result.add(_DirEntry(p.basename(dp), dp, NativeFs.dirSize(dp)));
-      result.sort((a, b) => b.size.compareTo(a.size));
-      return result;
-    });
+    final dirEntries = <_DirEntry>[];
+    for (final dp in dirPaths) {
+      try { dirEntries.add(_DirEntry(p.basename(dp), dp, NativeFs.dirSize(dp))); } catch (_) {}
+    }
+    dirEntries.sort((a, b) => b.size.compareTo(a.size));
     final files = entries.where((e) => !e.isDir).toList()..sort((a, b) => b.size.compareTo(a.size));
     setState(() {
       _dirs = dirEntries;
@@ -50,12 +48,11 @@ class _SAState extends State<StorageAnalysisPage> {
     setState(() { _loading = true; _root = path; });
     final entries = await NativeFs.listDir(path, showHidden: false);
     final dirPaths = entries.where((e) => e.isDir).map((e) => e.path).toList();
-    final dirs = await Isolate.run(() {
-      final result = <_DirEntry>[];
-      for (final dp in dirPaths) result.add(_DirEntry(p.basename(dp), dp, NativeFs.dirSize(dp)));
-      result.sort((a, b) => b.size.compareTo(a.size));
-      return result;
-    });
+    final dirs = <_DirEntry>[];
+    for (final dp in dirPaths) {
+      try { dirs.add(_DirEntry(p.basename(dp), dp, NativeFs.dirSize(dp))); } catch (_) {}
+    }
+    dirs.sort((a, b) => b.size.compareTo(a.size));
     final files = entries.where((e) => !e.isDir).toList()..sort((a, b) => b.size.compareTo(a.size));
     setState(() {
       _dirs = dirs;
