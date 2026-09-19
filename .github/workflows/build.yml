@@ -1,13 +1,9 @@
-name: Build All Platforms
+name: Build
 
-# 触发条件：main/master/develop 的 push / PR，或手动 workflow_dispatch，
-# 或推送形如 v* / release-* 的 tag（此时额外发布 GitHub Release）
 on:
   push:
     branches: [main, master, develop]
-    tags:
-      - 'v*'
-      - 'release-*'
+    tags: ['v*', 'release-*']
   pull_request:
     branches: [main, master, develop]
   workflow_dispatch:
@@ -16,16 +12,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Flutter 版本：须与 pubspec.yaml 的 sdk 约束 ^3.12.2（Dart 3.12）匹配。
 env:
   FLUTTER_VERSION: 3.44.4
 
 jobs:
-  # ============================================================
-  # Linux —— 编译 x86_64 release 二进制
-  # ============================================================
   linux:
-    name: Linux (binary)
+    name: Linux (x86_64)
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -39,44 +31,34 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
-      - name: Install Linux deps
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            cmake g++ ninja-build pkg-config make tar curl \
-            libgtk-3-dev libasound2-dev
-
+            cmake g++ ninja-build pkg-config make \
+            libgtk-3-dev libasound2-dev libmpv-dev libx11-dev
 
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Prepare native assets dir
-        run: mkdir -p build/native_assets/linux
-
-      - name: Build Linux release
+      - name: Build
         run: flutter build linux --release
 
-      - name: Verify binary
-        run: |
-          test -f build/linux/x64/release/bundle/flutter_file_manager
-          file build/linux/x64/release/bundle/flutter_file_manager
+      - name: Verify
+        run: test -f build/linux/x64/release/bundle/fn_file_manager
 
-      - name: Package Linux bundle
+      - name: Package
         run: |
           cd build/linux/x64/release
-          tar -czf flutter_file_manager-linux-x86_64.tar.gz bundle
-          ls -lh flutter_file_manager-linux-x86_64.tar.gz
+          tar -czf fn_file_manager-linux-x86_64.tar.gz bundle
 
-      - name: Upload Linux artifact
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: flutter-file-manager-linux-x86_64
-          path: build/linux/x64/release/flutter_file_manager-linux-x86_64.tar.gz
+          name: fn-file-manager-linux-x86_64
+          path: build/linux/x64/release/fn_file_manager-linux-x86_64.tar.gz
           retention-days: 14
 
-  # ============================================================
-  # Android —— 编译 arm64-v8a APK
-  # ============================================================
   android:
     name: Android (APK)
     runs-on: ubuntu-22.04
@@ -98,222 +80,40 @@ jobs:
           cache: true
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
+        run: |
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build
         run: flutter build apk --release
 
-      - name: Upload APK
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: flutter-file-manager-android-apk
+          name: fn-file-manager-android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
 
-  # ============================================================
-  # Windows —— 编译 x64 EXE
-  # ============================================================
-  windows:
-    name: Windows (EXE)
-    runs-on: windows-latest
-    timeout-minutes: 90
-    defaults:
-      run:
-        shell: pwsh
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-
-
-      - name: Flutter pub get
-        run: flutter pub get
-
-      - name: Build Windows release
-        run: flutter build windows --release
-
-      - name: Package Windows EXE
-        shell: pwsh
-        run: |
-          $src = "build/windows/x64/runner/Release"
-          Compress-Archive -Path "$src\*" -DestinationPath "flutter_file_manager-windows-x86_64.zip" -Force
-          Get-Item "flutter_file_manager-windows-x86_64.zip" | Select-Object Length
-
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: flutter-file-manager-windows-x64
-          path: flutter_file_manager-windows-x86_64.zip
-          retention-days: 14
-
-  # ============================================================
-  # iOS —— 编译未签名 IPA
-  # ============================================================
-  ios:
-    name: iOS (unsigned IPA)
-    runs-on: macos-latest
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-
-      - name: Setup Ruby (CocoaPods)
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.2'
-          bundler-cache: true
-
-      - name: Setup Xcode
-        run: |
-          sudo xcode-select --switch /Applications/Xcode.app 2>/dev/null || true
-          xcodebuild -version
-
-      - name: Install CMake (native modules)
-        run: |
-          brew install cmake ninja 2>/dev/null || true
-          cmake --version
-
-
-      - name: Flutter pub get
-        run: flutter pub get
-
-      - name: Build iOS native library
-        run: |
-          sh native/scripts/build_ios_native.sh
-          ls -lh build/native/ios/libflutter_native.a
-
-      - name: Build iOS (release, 不签名)
-        env:
-          CODE_SIGNING_ALLOWED: "NO"
-          CODE_SIGNING_REQUIRED: "NO"
-        run: flutter build ios --release --no-codesign
-
-      - name: Package unsigned IPA
-        run: |
-          cd build/ios/iphoneos
-          rm -rf Payload ios_unsigned.ipa
-          mkdir -p Payload
-          cp -R Runner.app Payload/
-          zip -qry ios_unsigned.ipa Payload
-          rm -rf Payload
-          file ios_unsigned.ipa
-
-      - name: Upload unsigned IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: flutter-file-manager-ios-unsigned-ipa
-          path: build/ios/iphoneos/ios_unsigned.ipa
-          retention-days: 14
-
-  # ============================================================
-  # macOS —— 编译 arm64 .app（Apple Silicon）
-  # 原生模块由 Xcode 构建阶段 build_macos_native.sh 编译并静态链接
-  # ============================================================
-  macos:
-    name: macOS (arm64 .app)
-    runs-on: macos-14
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
-
-      - name: Setup Xcode
-        run: |
-          sudo xcode-select --switch /Applications/Xcode.app 2>/dev/null || true
-          xcodebuild -version
-
-      - name: Install CMake (native modules)
-        run: |
-          brew install cmake ninja 2>/dev/null || true
-          cmake --version
-
-
-      - name: Flutter pub get
-        run: flutter pub get
-
-      - name: Build macOS native library
-        run: |
-          sh native/scripts/build_macos_native.sh
-          ls -lh build/native/macos/libflutter_native.a
-
-      # 原生模块由上面的显式步骤产出；Xcode Runner 的 "Build Native" 阶段会增量复用
-      - name: Build macOS release
-        run: flutter build macos --release
-
-      - name: Verify app bundle
-        run: |
-          test -d build/macos/Build/Products/Release/flutter_file_manager.app
-          file build/macos/Build/Products/Release/flutter_file_manager.app/Contents/MacOS/flutter_file_manager
-          # 确认原生符号已静态链接进主二进制
-          nm build/macos/Build/Products/Release/flutter_file_manager.app/Contents/MacOS/flutter_file_manager \
-            | grep -c "media_video_next_frame_rgba" || true
-
-      - name: Package .app as zip
-        run: |
-          cd build/macos/Build/Products/Release
-          ditto -c -k --sequesterRsrc --keepParent \
-            flutter_file_manager.app flutter_file_manager-macos-arm64.zip
-          ls -lh flutter_file_manager-macos-arm64.zip
-
-      - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: flutter-file-manager-macos-arm64
-          path: build/macos/Build/Products/Release/flutter_file_manager-macos-arm64.zip
-          retention-days: 14
-
-  # ============================================================
-  # 构建结果汇总
-  # ============================================================
   summarize:
-    name: Build Summary
+    name: Summary
     runs-on: ubuntu-22.04
-    needs: [linux, android, windows, ios, macos]
+    needs: [linux, android]
     if: always()
     steps:
       - run: |
-          echo "## 各平台构建结果" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| 平台 | 产物 | 状态 |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|------|------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Linux | 二进制 | ${{ needs.linux.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Android | APK | ${{ needs.android.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Windows | EXE | ${{ needs.windows.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| iOS | 未签名 IPA | ${{ needs.ios.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| macOS | arm64 .app | ${{ needs.macos.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux | ${{ needs.linux.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Android | ${{ needs.android.result }} |" >> $GITHUB_STEP_SUMMARY
 
-  # ============================================================
-  # Release：把各平台编译产物发布到 GitHub Release
-  # 仅在推送 v* / release-* tag 时执行（依赖全部构建 Job）
-  # ============================================================
   release:
-    name: Publish GitHub Release
+    name: Release
     runs-on: ubuntu-22.04
-    needs: [linux, android, windows, ios, macos]
+    needs: [linux, android]
     if: startsWith(github.ref, 'refs/tags/') && success()
     permissions:
       contents: write
@@ -322,9 +122,8 @@ jobs:
         with:
           path: release-assets
           merge-multiple: true
-      - name: List assets
-        run: ls -lhR release-assets/
-      - name: Create/Update GitHub Release
+
+      - name: Create Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -333,12 +132,7 @@ jobs:
           FILES=$(find release-assets -type f | sort)
           if [ -n "${FILES}" ]; then
             gh release create "${TAG}" \
-              --title "Flutter File Manager ${TAG}" \
-              --notes "跨平台编译产物：Linux / Android / Windows / iOS / macOS" \
+              --title "FN File Manager ${TAG}" \
+              --notes "Cross-platform builds: Linux / Android" \
               ${FILES}
-          else
-            gh release create "${TAG}" \
-              --title "Flutter File Manager ${TAG}" \
-              --notes "本次无编译产物"
           fi
-          echo "Release 已发布: ${TAG}"
