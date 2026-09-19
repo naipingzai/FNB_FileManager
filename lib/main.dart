@@ -35,9 +35,9 @@ class _AppState extends State<App> {
     final current = _locale?.languageCode ?? 'system';
     final cs = Theme.of(callerCtx).colorScheme;
     final result = await showDialog<String>(context: callerCtx, builder: (ctx) => SimpleDialog(
-      title: Text(AppLocalizations.of(context)!.languageSettings),
+      title: Text(AppLocalizations.of(ctx)!.languageSettings),
       children: [
-        _langOption(ctx, 'system', AppLocalizations.of(context)!.followSystem, current, cs),
+        _langOption(ctx, 'system', AppLocalizations.of(ctx)!.followSystem, current, cs),
         _langOption(ctx, 'en', 'English', current, cs),
         _langOption(ctx, 'zh', '中文', current, cs),
       ],
