@@ -1,17 +1,96 @@
-cmake_minimum_required(VERSION 3.13)
-project(file_ops LANGUAGES CXX C)
+# native - 跨平台原生层统一构建入口
+# ============================================================
+# 模块化架构：
+#   src/          跨平台核心实现（视频/音频/电子书/压缩包/工具）
+#   platform/     平台适配（音频输出）
+#   include/      对外统一 API 头文件
+# ============================================================
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+cmake_minimum_required(VERSION 3.16)
+project(native LANGUAGES C)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+set(NATIVE_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
-find_package(OpenSSL REQUIRED)
-find_package(ZLIB REQUIRED)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
 
-add_library(file_ops SHARED
-    file_ops.cpp
-    file_ops_json.cpp
+if(MSVC)
+    add_compile_options(/W3 /utf-8)
+    add_compile_definitions(_CRT_SECURE_NO_WARNINGS NOMINMAX)
+else()
+    add_compile_options(-Wall -Wextra -Wno-unused-parameter)
+endif()
+
+# ============================================================
+# 源码清单
+# ============================================================
+set(NATIVE_SOURCES
+    src/utils.c
+    src/fs_ops.c
+    src/video_decode.c
+    src/video_convert.c
+    src/media_tools.c
+    src/audio_decode.c
+    src/epub.c
+    src/archive.c
 )
 
-target_include_directories(file_ops PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(file_ops PRIVATE OpenSSL::Crypto ZLIB::ZLIB stdc++fs)
+# 平台音频输出
+if(ANDROID)
+    list(APPEND NATIVE_SOURCES platform/android/audio_output.c)
+else()
+    list(APPEND NATIVE_SOURCES platform/linux/audio_output.c)
+endif()
+
+# ============================================================
+# 静态库
+# ============================================================
+add_library(native STATIC ${NATIVE_SOURCES})
+
+target_include_directories(native PUBLIC
+    ${NATIVE_ROOT}/include
+    ${NATIVE_ROOT}
+)
+
+# 平台系统库
+if(ANDROID)
+    target_link_libraries(native PUBLIC log aaudio)
+else()
+    target_link_libraries(native PUBLIC asound bz2 z lzma m pthread dl rt)
+endif()
+
+# ============================================================
+# 第三方库
+# ============================================================
+if(ANDROID)
+    set(THIRD_PARTY_DIR "${NATIVE_ROOT}/third_party/android")
+else()
+    set(THIRD_PARTY_DIR "${NATIVE_ROOT}/third_party/linux")
+endif()
+
+if(EXISTS "${THIRD_PARTY_DIR}/include" AND EXISTS "${THIRD_PARTY_DIR}/lib")
+    target_include_directories(native PRIVATE "${THIRD_PARTY_DIR}/include")
+    target_link_libraries(native PUBLIC
+        "${THIRD_PARTY_DIR}/lib/libavformat.a"
+        "${THIRD_PARTY_DIR}/lib/libavcodec.a"
+        "${THIRD_PARTY_DIR}/lib/libavutil.a"
+        "${THIRD_PARTY_DIR}/lib/libswscale.a"
+        "${THIRD_PARTY_DIR}/lib/libswresample.a"
+        "${THIRD_PARTY_DIR}/lib/libminiz.a"
+        "${THIRD_PARTY_DIR}/lib/libstb_image.a"
+        "${THIRD_PARTY_DIR}/lib/libsqlite3.a"
+    )
+    if(NOT ANDROID)
+        target_link_libraries(native PUBLIC x264)
+    endif()
+    message(STATUS "[native] 第三方库: ${THIRD_PARTY_DIR}")
+else()
+    message(FATAL_ERROR "[native] 缺少第三方库: ${THIRD_PARTY_DIR}")
+endif()
+
+

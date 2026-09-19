@@ -4,10 +4,10 @@ project(runner LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "flutter_file_manager")
+set(BINARY_NAME "fn_file_manager")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "com.advancefilemanager.flutter_file_manager")
+set(APPLICATION_ID "com.naipingzai.fn_file_manager")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
@@ -54,14 +54,17 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
 
-# Native C++ library for file operations
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../native" "${CMAKE_BINARY_DIR}/native")
+# ============================================================
+# Native C++ 层（单一 CMake 配置，产出 common/system/file/text/media）
+# ============================================================
+set(NATIVE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+add_subdirectory("${NATIVE_ROOT}" "${CMAKE_BINARY_DIR}/cpp")
 
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
-# Ensure native library is built before the runner
-add_dependencies(${BINARY_NAME} file_ops)
+# Ensure native static libraries are built before the runner
+add_dependencies(${BINARY_NAME} native)
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
@@ -100,10 +103,7 @@ set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib")
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 
-# Install the native library
-install(TARGETS file_ops
-  LIBRARY DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
-  COMPONENT Runtime)
+# 静态库直接集成进可执行文件，无需安装动态库
 
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   COMPONENT Runtime)

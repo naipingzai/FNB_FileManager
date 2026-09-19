@@ -1,0 +1,14 @@
+prefix=/home/npznnz/npz_flutter_code/native/third_party/linux
+exec_prefix=${prefix}
+libdir=/home/npznnz/npz_flutter_code/native/third_party/linux/lib
+includedir=/home/npznnz/npz_flutter_code/native/third_party/linux/include
+
+Name: libavcodec
+Description: FFmpeg codec library
+Version: 61.3.100
+Requires: libswresample >= 5.1.100, libavutil >= 59.8.100
+Requires.private: 
+Conflicts:
+Libs: -L${libdir}  -lavcodec -pthread -lm -latomic -lx264
+Libs.private: 
+Cflags: -I${includedir}

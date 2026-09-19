@@ -1,0 +1,14 @@
+prefix=/home/npznnz/npz_flutter_code/native/third_party/linux
+exec_prefix=${prefix}
+libdir=/home/npznnz/npz_flutter_code/native/third_party/linux/lib
+includedir=/home/npznnz/npz_flutter_code/native/third_party/linux/include
+
+Name: libavformat
+Description: FFmpeg container format library
+Version: 61.1.100
+Requires: libavcodec >= 61.3.100, libswresample >= 5.1.100, libavutil >= 59.8.100
+Requires.private: 
+Conflicts:
+Libs: -L${libdir}  -lavformat -lm -latomic
+Libs.private: 
+Cflags: -I${includedir}
